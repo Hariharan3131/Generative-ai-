@@ -1,0 +1,90 @@
+CODE:
+
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+class ContentBasedRecommender:
+    def __init__(self, songs_data):
+        self.songs_data = songs_data
+
+    def recommend(self, song_index, number_songs, mood):
+        # Check if song index is valid
+        if song_index >= len(self.songs_data):
+            print(f"Error: Invalid song index {song_index}.")
+            return
+
+        # Get song data
+        song_data = self.songs_data.iloc[song_index]
+        song_text = [song_data['text']]
+
+        # Filter songs based on mood
+        mood_based_songs = self.songs_data[self.songs_data['mood'] == mood]
+
+        print(f"Number of songs with mood '{mood}': {len(mood_based_songs)}")
+
+        if mood_based_songs.empty:
+            print(f"Sorry, no recommendations available for the mood '{mood}'.")
+            return
+
+        # Calculate TF-IDF matrix for mood-based songs
+        tfidf = TfidfVectorizer(analyzer='word', stop_words='english')
+        mood_lyrics_matrix = tfidf.fit_transform(mood_based_songs['text'])
+
+        # Compute cosine similarity between the given song and mood-based songs
+        cosine_similarities = cosine_similarity(tfidf.transform(song_text), mood_lyrics_matrix)
+
+        # Get indices of similar songs sorted by similarity score
+        similar_song_indices = cosine_similarities.argsort()[0][::-1]
+
+        # Print recommended songs
+        print(f"The {number_songs} recommended songs for '{song_data['song']}' based on mood '{mood}' are:")
+        for idx in similar_song_indices[:number_songs]:
+            recommended_song = mood_based_songs.iloc[idx]
+            print(f"Title: {recommended_song['song']}")
+            print(f"Artist: {recommended_song['artist']}")
+            print(f"Similarity Score: {cosine_similarities[0][idx]}")
+            print("--------------------")
+
+# Load songs data
+songs = pd.read_csv('/content/drive/MyDrive/songdata2.csv')
+songs = songs.dropna(subset=['text', 'mood']).reset_index(drop=True)  # Drop rows with missing values for 'text' and 'mood'
+songs['text'] = songs['text'].str.replace(r'\n', '')
+
+# Function to handle user input for mood
+def get_user_mood():
+    while True:
+        mood = input("Enter your mood (Happy, Sad, Depression, Fear, Disgust, Surprise): ").strip().title()
+        if mood in ['Happy', 'Sad', 'Depression', 'Fear', 'Disgust', 'Surprise']:
+            return mood
+        print("Invalid mood. Please enter one of the following moods: Happy, Sad, Depression, Fear, Disgust, Surprise.")
+
+# Example usage
+recommender = ContentBasedRecommender(songs)
+song_index = 10  # Example song index
+number_songs = 4  # Number of songs to recommend
+user_mood = get_user_mood()  # Ask user for mood input
+recommender.recommend(song_index, number_songs, user_mood)
+
+
+OUTPUT:
+
+Enter your mood (Happy, Sad, Depression, Fear, Disgust, Surprise): Sad
+Number of songs with mood 'Sad': 9609
+The 4 recommended songs for 'Dance' based on mood 'Sad' are:
+Title: Dance Only With Me
+Artist: Perry Como
+Similarity Score: 0.5622297617060088
+--------------------
+Title: Halloween Dance
+Artist: Halloween
+Similarity Score: 0.5368368203963375
+--------------------
+Title: Ten Guitars
+Artist: Engelbert Humperdinck
+Similarity Score: 0.5023358258264269
+--------------------
+Title: Do You Want To Dance
+Artist: Gloria Estefan
+Similarity Score: 0.48022391971590433
+--------------------
